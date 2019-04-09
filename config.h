@@ -30,7 +30,7 @@ public:
     int get_camera_comp_id();
     bool get_support_multiple_camera();
     bool get_support_camera_capture();
-    void load_config();
+    void load_config(const char* filename);
 
 private:
     Config();

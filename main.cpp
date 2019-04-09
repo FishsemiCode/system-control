@@ -19,13 +19,19 @@
 #include "camera_control.h"
 #include "config.h"
 
+#define CONFIG_FILE "/system/etc/system-control.conf"
+
 int main(int argc, char *argv[])
 {
     BoardControl* board_control;
     D2dTracker* d2d_tracker;
     CameraControl* camera_control;
+    const char* filename = CONFIG_FILE;
 
-    Config::get_instance()->load_config();
+    if (argc > 1) {
+        filename = argv[1];
+    }
+    Config::get_instance()->load_config(filename);
 
     board_control = new BoardControl();
     board_control->start();

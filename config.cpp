@@ -15,6 +15,7 @@
  */
 
 #include <stdlib.h>
+#include <errno.h>
 #include <utils/Log.h>
 
 #include "mavlink.h"
@@ -22,7 +23,6 @@
 
 #undef LOG_TAG
 #define LOG_TAG "Config"
-#define CONFIG_FILE "/system/etc/system-control.conf"
 #define MAX_LINES 32
 #define MAX_LINE_TEXT 128
 
@@ -109,15 +109,19 @@ bool Config::get_support_camera_capture()
     return _support_camera_capture;
 }
 
-void Config::load_config()
+void Config::load_config(const char* filename)
 {
     char buffer[MAX_LINES][MAX_LINE_TEXT];
     const char* delimiters = " =;\n";
     size_t linesRead = 0;
     char* string;
 
-    FILE *pFile = fopen(CONFIG_FILE, "r");
+    if(filename == nullptr) {
+        return;
+    }
+    FILE *pFile = fopen(filename, "r");
     if (!pFile) {
+        ALOGE("Failed to open config file %s, %d", filename, errno);
         return;
     }
 
