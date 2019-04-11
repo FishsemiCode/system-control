@@ -115,8 +115,7 @@ bool ModuleThread::_add_timer(int* fd, uint32_t timeout_msec)
     }
 }
 
-int ModuleThread::_get_domain_socket(const char* sock_name, int type,
-                                     const char* server_name, int server_type)
+int ModuleThread::_get_domain_socket(const char* sock_name, int type)
 {
     int flags = 0;
     int fd = -1;
@@ -144,34 +143,18 @@ int ModuleThread::_get_domain_socket(const char* sock_name, int type,
             ALOGE("Error binding socket to %s", sock_name);
             goto fail;
         }
-        if ((flags = fcntl(fd, F_GETFL, 0) == -1)) {
-            ALOGE("Error getfl for fd");
-            goto fail;
-        }
-        if (fcntl(fd, F_SETFL, O_NONBLOCK | flags) < 0) {
-            ALOGE("Error setting socket fd as non-blocking");
-            goto fail;
-        }
     }
 
-    if (server_name != NULL) {
-        bzero((void*)&sockaddr, sizeof(sockaddr));
-        sockaddr.sun_family = AF_UNIX;
-        if(server_type == TYPE_DOMAIN_SOCK_ABSTRACT) {
-            sockaddr.sun_path[0] = 0;
-            strcpy(sockaddr.sun_path+1, server_name);
-            sockaddr_len = strlen(server_name) + offsetof(struct sockaddr_un, sun_path) + 1;
-        } else {
-            strcpy(sockaddr.sun_path, server_name);
-            sockaddr_len = sizeof(sockaddr);
-        }
-        if (connect(fd, (struct sockaddr *) &sockaddr, sockaddr_len)) {
-            ALOGE("Error connect to %s", server_name);
-            goto fail;
-        }
+    if ((flags = fcntl(fd, F_GETFL, 0) == -1)) {
+        ALOGE("Error getfl for fd");
+        goto fail;
     }
-    ALOGD("get domain socket [%d] [%s] - [%s]", fd,
-            sock_name ? sock_name : " ", server_name ? server_name : " ");
+    if (fcntl(fd, F_SETFL, O_NONBLOCK | flags) < 0) {
+        ALOGE("Error setting socket fd as non-blocking");
+        goto fail;
+    }
+
+    ALOGD("get domain socket [%d] [%s]", fd, sock_name ? sock_name : " ");
     return fd;
 
 fail:
@@ -244,15 +227,39 @@ bool ModuleThread::_parse_mavlink_pack(uint8_t* buffer, uint32_t len, mavlink_me
 bool ModuleThread::_send_message(int fd, const void *buf, size_t len,
                                const struct sockaddr *dest_addr, socklen_t addrlen)
 {
-    int r = ::sendto(fd, buf, len, 0, dest_addr, addrlen);
+    ssize_t r = ::sendto(fd, buf, len, 0, dest_addr, addrlen);
     if (r < 0) {
         ALOGE("send [%d] failed in %s errno %d", fd, _module_name, errno);
         return false;
     }
-    if (r != len) {
-        ALOGE("send [%d] failed in %s, expected %d but sent %d", fd, _module_name, len, r);
+    if (r != (ssize_t)len) {
+        ALOGE("send [%d] failed in %s, expected %zu but sent %zd", fd, _module_name, len, r);
         return false;
     }
     ALOGV("sent message success to [%d] in %s", fd, _module_name);
     return true;
+}
+
+bool ModuleThread::_send_message(int fd, const void *buf, size_t len,
+                               const char* server_name, int server_type)
+{
+    struct sockaddr_un sockaddr;
+    socklen_t sockaddr_len;
+
+    if (server_name == nullptr) {
+        ALOGE("server is null!");
+        return false;
+    }
+    bzero((void*)&sockaddr, sizeof(sockaddr));
+    sockaddr.sun_family = AF_UNIX;
+    if(server_type == TYPE_DOMAIN_SOCK_ABSTRACT) {
+        sockaddr.sun_path[0] = 0;
+        strcpy(sockaddr.sun_path+1, server_name);
+        sockaddr_len = strlen(server_name) + offsetof(struct sockaddr_un, sun_path) + 1;
+    } else {
+        strcpy(sockaddr.sun_path, server_name);
+        sockaddr_len = sizeof(sockaddr);
+    }
+
+    return _send_message(fd, buf, len, (const struct sockaddr*)&sockaddr, sockaddr_len);
 }

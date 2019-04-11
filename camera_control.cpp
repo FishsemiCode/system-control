@@ -55,8 +55,6 @@ CameraControl::CameraControl() : ModuleThread{"CameraControl"}
     _comp_id = Config::get_instance()->get_camera_comp_id();
 
     _router_fd = _get_domain_socket(CAMERA_CONTROL_SOCKET_NAME,
-                                    TYPE_DOMAIN_SOCK_ABSTRACT,
-                                    Config::get_instance()->get_camera_endpoint_name(),
                                     TYPE_DOMAIN_SOCK_ABSTRACT);
     if (_router_fd < 0) {
         ALOGE("opening _router_fd socket failure");
@@ -213,7 +211,9 @@ void CameraControl::_send_mavlink_msg(mavlink_message_t* pMsg)
     uint8_t data[MAVLINK_MAX_PACKET_LEN];
     int len = 0;
     len = mavlink_msg_to_send_buffer(data, pMsg);
-    _send_message(_router_fd, data, len, NULL, 0);
+    _send_message(_router_fd, data, len,
+                  Config::get_instance()->get_camera_endpoint_name(),
+                  TYPE_DOMAIN_SOCK_ABSTRACT);
 }
 
 void CameraControl::_handle_camera_info_request()

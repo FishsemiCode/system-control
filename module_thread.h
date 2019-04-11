@@ -63,8 +63,7 @@ protected:
     virtual void _thread_entry() override;
     bool _add_read_fd(int fd, int type);
     bool _add_timer(int* fd, uint32_t timeout_msec);
-    int _get_domain_socket(const char* sock_name, int type,
-            const char* server_name, int server_type);
+    int _get_domain_socket(const char* sock_name, int type);
     virtual bool _handle_read(int fd, int type);
     virtual bool _handle_timeout(int fd);
     virtual bool _process_data(int fd, uint8_t* buf, int len,
@@ -72,6 +71,8 @@ protected:
     bool _parse_mavlink_pack(uint8_t* buffer, uint32_t len, mavlink_message_t* msg);
     bool _send_message(int fd, const void *buf, size_t len,
                        const struct sockaddr *dest_addr, socklen_t addrlen);
+    bool _send_message(int fd, const void *buf, size_t len,
+                       const char* server_name, int server_type);
 
 private:
     uint8_t* _rx_buffer;

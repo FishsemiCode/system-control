@@ -81,17 +81,13 @@ bool D2dTracker::_open_socket()
     _add_read_fd(_d2d_info_fd, TYPE_OTHER_FD);
 
     // socket to send message to rc service
-    _rc_fd = _get_domain_socket(NULL, 0,
-                                Config::get_instance()->get_rc_socket_name(),
-                                TYPE_DOMAIN_SOCK);
+    _rc_fd = _get_domain_socket(NULL, 0);
     if(_rc_fd < 0) {
         ALOGE("fail to create rc socket");
     }
 
     // socket to send message to mavlink router
-    _router_fd = _get_domain_socket(NULL, 0,
-                                    Config::get_instance()->get_board_endpoint_name(),
-                                    TYPE_DOMAIN_SOCK_ABSTRACT);
+    _router_fd = _get_domain_socket(NULL, 0);
     if(_router_fd < 0) {
         ALOGE("fail to create router socket");
     }
@@ -235,12 +231,16 @@ bool D2dTracker::_process_d2d_info()
     if(_rc_fd >= 0) {
         packet[0] = rssi;
         packet[1] = noise;
-        _send_message(_rc_fd, packet, 2, NULL, 0);
+        _send_message(_rc_fd, packet, 2,
+                      Config::get_instance()->get_rc_socket_name(),
+                      TYPE_DOMAIN_SOCK);
     }
 
     // send msg to mavlink router
     len = _get_radio_packet(packet, rssi, noise);
-    return _send_message(_router_fd, packet, len, NULL, 0);
+    return _send_message(_router_fd, packet, len,
+                         Config::get_instance()->get_board_endpoint_name(),
+                         TYPE_DOMAIN_SOCK_ABSTRACT);
 }
 
 ssize_t D2dTracker::_get_radio_packet(uint8_t *pBuf, uint8_t rssi, uint8_t noise)

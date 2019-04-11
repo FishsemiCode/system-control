@@ -48,8 +48,6 @@ bool BoardControl::start()
         goto fail;
     }
     _sock_fd = _get_domain_socket(BOARD_CONTROL_SOCK_NAME,
-                                 TYPE_DOMAIN_SOCK_ABSTRACT,
-                                 Config::get_instance()->get_board_endpoint_name(),
                                  TYPE_DOMAIN_SOCK_ABSTRACT);
     if (_sock_fd < 0) {
         ALOGE("Unable to create sockfd");
@@ -156,7 +154,9 @@ bool BoardControl::_send_time_sync_message(int64_t time)
 
     mavlink_msg_timesync_pack(_system_id, _comp_id, &msg, time, 0);
     len = mavlink_msg_to_send_buffer(packet, &msg);
-    return _send_message(_sock_fd, packet, len, NULL, 0);
+    return _send_message(_sock_fd, packet, len,
+                         Config::get_instance()->get_board_endpoint_name(),
+                         TYPE_DOMAIN_SOCK_ABSTRACT);
 }
 
 bool BoardControl::_send_board_temperature_message(int16_t temp)
@@ -169,7 +169,9 @@ bool BoardControl::_send_board_temperature_message(int16_t temp)
                                          0, 0, 0, temp);
 
     len = mavlink_msg_to_send_buffer(packet, &msg);
-    return _send_message(_sock_fd, packet, len, NULL, 0);
+    return _send_message(_sock_fd, packet, len,
+                         Config::get_instance()->get_board_endpoint_name(),
+                         TYPE_DOMAIN_SOCK_ABSTRACT);
 }
 
 int BoardControl::_get_board_temperature(int* temp)
