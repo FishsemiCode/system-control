@@ -50,6 +50,7 @@ CameraService::CameraService()
     _camera = new UAVCamera();
     _camera_cb= new CameraCallBack();
     _camera->setNotifyCallback(_camera_cb);
+    init_pthread_condition();
 }
 
 int CameraService::open_camera() {
@@ -220,6 +221,15 @@ void CameraService::camera_data_callback(int64_t timestamp, int32_t width, int32
     (void) buf;
 }
 
+void CameraService::init_pthread_condition()
+{
+    pthread_condattr_t cond_attr;
+
+    pthread_condattr_init(&cond_attr);
+    pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
+    pthread_cond_init(&_cond_photo_capture, &cond_attr);
+}
+
 void CameraService::cond_signal_photo_capture()
 {
     pthread_mutex_lock(&_lock_photo_capture);
@@ -232,7 +242,7 @@ int CameraService::cond_wait_photo_capture()
     int rc;
     timespec ts;
 
-    clock_gettime(CLOCK_REALTIME, &ts);
+    clock_gettime(CLOCK_MONOTONIC, &ts);
     ts.tv_sec += 5;
     pthread_mutex_lock(&_lock_photo_capture);
     rc = pthread_cond_timedwait(&_cond_photo_capture, &_lock_photo_capture, &ts);

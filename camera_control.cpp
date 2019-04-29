@@ -137,6 +137,8 @@ bool CameraControl::_process_data(int fd, uint8_t* buf, int len,
     if (!_parse_mavlink_pack(buf, len, &msg)) {
         return false;
     }
+    _src_sys_id = msg.sysid;
+    _src_comp_id = msg.compid;
     if (msg.msgid == MAVLINK_MSG_ID_COMMAND_LONG) {
         mavlink_command_long_t cmd;
         mavlink_msg_command_long_decode(&msg, &cmd);

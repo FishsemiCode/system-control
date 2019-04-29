@@ -17,7 +17,9 @@
 #pragma once
 
 #include "module_thread.h"
+#ifdef CAMERA_EXIST
 #include "camera_service.h"
+#endif
 
 typedef enum {
     CONNECTED = 0,
@@ -53,6 +55,6 @@ private:
     int _d2d_info_fd;
     int _rc_fd;
     int _router_fd;
-    CameraService* _camera_service;
+    uint64_t _last_radio_pack_time;
     d2d_info _d2d_info;
 };

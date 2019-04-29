@@ -26,8 +26,8 @@ protected:
     virtual bool _handle_timeout(int fd) override;
     virtual bool _process_data(int fd, uint8_t* buf, int len,
                                struct sockaddr* src_addr, int addrlen) override;
-    void _send_time_sync();
-    bool _send_time_sync_message(int64_t time);
+    void _send_time_sync_request();
+    bool _send_time_sync_message(int64_t tc1, int64_t ts1);
     bool _send_board_temperature_message(int16_t temp);
     int _get_cpu_temperature(int* temp);
     int _get_board_temperature(int* temp);

@@ -115,7 +115,7 @@ bool ModuleThread::_add_timer(int* fd, uint32_t timeout_msec)
     }
 }
 
-int ModuleThread::_get_domain_socket(const char* sock_name, int type)
+int ModuleThread::_get_domain_socket(const char* sock_name, int type, bool non_block)
 {
     int flags = 0;
     int fd = -1;
@@ -145,13 +145,15 @@ int ModuleThread::_get_domain_socket(const char* sock_name, int type)
         }
     }
 
-    if ((flags = fcntl(fd, F_GETFL, 0) == -1)) {
-        ALOGE("Error getfl for fd");
-        goto fail;
-    }
-    if (fcntl(fd, F_SETFL, O_NONBLOCK | flags) < 0) {
-        ALOGE("Error setting socket fd as non-blocking");
-        goto fail;
+    if (non_block) {
+        if ((flags = fcntl(fd, F_GETFL, 0) == -1)) {
+            ALOGE("Error getfl for fd");
+            goto fail;
+        }
+        if (fcntl(fd, F_SETFL, O_NONBLOCK | flags) < 0) {
+            ALOGE("Error setting socket fd as non-blocking");
+            goto fail;
+        }
     }
 
     ALOGD("get domain socket [%d] [%s]", fd, sock_name ? sock_name : " ");
@@ -202,12 +204,18 @@ bool ModuleThread::_handle_read(int fd, int type)
 
 bool ModuleThread::_handle_timeout(int fd)
 {
+    (void) fd;
     return true;
 }
 
 bool ModuleThread::_process_data(int fd, uint8_t* buf, int len,
                    struct sockaddr* src_addr, int addrlen)
 {
+    (void) fd;
+    (void) buf;
+    (void) len;
+    (void) src_addr;
+    (void) addrlen;
     return true;
 }
 

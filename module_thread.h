@@ -63,7 +63,7 @@ protected:
     virtual void _thread_entry() override;
     bool _add_read_fd(int fd, int type);
     bool _add_timer(int* fd, uint32_t timeout_msec);
-    int _get_domain_socket(const char* sock_name, int type);
+    int _get_domain_socket(const char* sock_name, int type, bool non_block = true);
     virtual bool _handle_read(int fd, int type);
     virtual bool _handle_timeout(int fd);
     virtual bool _process_data(int fd, uint8_t* buf, int len,

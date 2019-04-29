@@ -43,9 +43,12 @@ BoardControl::BoardControl()
 
 bool BoardControl::start()
 {
-    if (!_add_timer(&_timer_fd, POLLING_RATE_TIMEOUT_MS)) {
-        ALOGE("Unable to add timerfd");
-        goto fail;
+    // The timer is only needed in air
+    if (Config::get_instance()->get_in_air()) {
+        if (!_add_timer(&_timer_fd, POLLING_RATE_TIMEOUT_MS)) {
+            ALOGE("Unable to add timerfd");
+            goto fail;
+        }
     }
     _sock_fd = _get_domain_socket(BOARD_CONTROL_SOCK_NAME,
                                  TYPE_DOMAIN_SOCK_ABSTRACT);
@@ -76,15 +79,15 @@ bool BoardControl::_handle_timeout(int fd)
     int ret;
     int temperature;
     if (_timer_fd == fd) {
-        // board temperature
+        // board temperature, only in air
         ret = _get_board_temperature(&temperature);
         if (ret == 0 && temperature != _last_board_temperature) {
             _last_board_temperature = temperature;
              ALOGD("temperature changed to %d", temperature);
             _send_board_temperature_message(_last_board_temperature/10);
         }
-        // sync time with gcs
-        _send_time_sync();
+        // sync time request with gcs, only in air
+        _send_time_sync_request();
         return true;
     }
     return false;
@@ -108,27 +111,41 @@ bool BoardControl::_process_data(int fd, uint8_t* buf, int len,
         timeval tv;
         mavlink_timesync_t timesync;
         mavlink_msg_timesync_decode(&msg, &timesync);
-        if(timesync.ts1 > 0) {
-            _time_sync_done = true;
-        }
-        if (gettimeofday(&tv, NULL) == 0) {
-            int64_t delta = timesync.ts1 - tv.tv_sec;
-            if(delta > 60 || delta < -60) {
-                ALOGD("try to set time from %ld to %ld", tv.tv_sec, timesync.ts1);
-                tv.tv_sec = timesync.ts1;
-                tv.tv_usec = 0;
-                if(settimeofday(&tv, NULL) != 0) {
-                    ALOGE("failed to settimeofday! %d", errno);
+
+        if (!Config::get_instance()->get_in_air()) {
+            // acting as time server, respond the request
+            if ((timesync.tc1 > 0) && (timesync.ts1 == 0)) {
+                if (gettimeofday(&tv, NULL) == 0) {
+                    ALOGD("response time sync from %ld to %ld", timesync.tc1, tv.tv_sec);
+                    _send_time_sync_message(timesync.tc1, tv.tv_sec);
+                } else {
+                    ALOGE("gettimeofday failed! %d", errno);
                 }
             }
         } else {
-            ALOGE("gettimeofday failed! %d", errno);
+            // acting as time client, set time according to the response
+            if(timesync.ts1 > 0) {
+                _time_sync_done = true;
+            }
+            if (gettimeofday(&tv, NULL) == 0) {
+                int64_t delta = timesync.ts1 - tv.tv_sec;
+                if(delta > 60 || delta < -60) {
+                    ALOGD("try to set time from %ld to %ld", tv.tv_sec, timesync.ts1);
+                    tv.tv_sec = timesync.ts1;
+                    tv.tv_usec = 0;
+                    if(settimeofday(&tv, NULL) != 0) {
+                        ALOGE("failed to settimeofday! %d", errno);
+                    }
+                }
+            } else {
+                ALOGE("gettimeofday failed! %d", errno);
+            }
         }
     }
     return true;
 }
 
-void BoardControl::_send_time_sync()
+void BoardControl::_send_time_sync_request()
 {
     uint32_t sync_rate = TIME_SYNC_RATE;
     if (_time_sync_done) {
@@ -139,20 +156,20 @@ void BoardControl::_send_time_sync()
         timeval tv;
         if (gettimeofday(&tv, NULL) == 0) {
             ALOGV("gettimeofday %ld", tv.tv_sec);
-            _send_time_sync_message(tv.tv_sec);
+            _send_time_sync_message(tv.tv_sec, 0);
         } else {
             ALOGD("gettimeofday failed!");
         }
     }
 }
 
-bool BoardControl::_send_time_sync_message(int64_t time)
+bool BoardControl::_send_time_sync_message(int64_t tc1, int64_t ts1)
 {
     uint8_t packet[MAVLINK_MAX_PACKET_LEN];
     int len;
     mavlink_message_t msg;
 
-    mavlink_msg_timesync_pack(_system_id, _comp_id, &msg, time, 0);
+    mavlink_msg_timesync_pack(_system_id, _comp_id, &msg, tc1, ts1);
     len = mavlink_msg_to_send_buffer(packet, &msg);
     return _send_message(_sock_fd, packet, len,
                          Config::get_instance()->get_board_endpoint_name(),

@@ -33,6 +33,7 @@
 #define LOG_TAG "D2dTracker"
 #define D2D_SOCKET_NAME "d2dinfo"
 #define D2D_MAX_MESSAGE_BYTES 100
+#define RADIO_PACK_INTERVAL 500
 // potential need for dual controllers
 #define SOCKET_MAX_NUM 2
 
@@ -53,7 +54,7 @@ D2dTracker::D2dTracker() : ModuleThread{"D2dTracker"}
     _d2d_info_fd = -1;
     _rc_fd = -1;
     _router_fd = -1;
-    _camera_service = CameraService::get_instance();
+    _last_radio_pack_time = 0;
     bzero((void*)&_d2d_info, sizeof(_d2d_info));
 
 }
@@ -81,11 +82,12 @@ bool D2dTracker::_open_socket()
     _add_read_fd(_d2d_info_fd, TYPE_OTHER_FD);
 
     // socket to send message to rc service
-    _rc_fd = _get_domain_socket(NULL, 0);
-    if(_rc_fd < 0) {
-        ALOGE("fail to create rc socket");
+    if (strlen(Config::get_instance()->get_rc_socket_name()) > 0) {
+        _rc_fd = _get_domain_socket(NULL, 0);
+        if(_rc_fd < 0) {
+            ALOGE("fail to create rc socket");
+        }
     }
-
     // socket to send message to mavlink router
     _router_fd = _get_domain_socket(NULL, 0);
     if(_router_fd < 0) {
@@ -191,6 +193,8 @@ bool D2dTracker::_process_d2d_info()
     uint8_t rssi;
     uint8_t noise;
 
+#ifdef CAMERA_EXIST
+    CameraService* _camera_service = CameraService::get_instance();
     if(_d2d_info.service_status == CONNECTED) {
         if(_bit_rate_adjust_mode == 0) {
             if (_d2d_info.ul_bandwidth != _last_tp_snr) {
@@ -215,6 +219,7 @@ bool D2dTracker::_process_d2d_info()
         ALOGD("reconnected, request idr, service_status is %d", _d2d_info.service_status);
     }
     _last_service_status = _d2d_info.service_status;
+#endif
 
     // calculate rssi and noise
     if ((_d2d_info.rsrp > 0) || (_d2d_info.rsrp < -255)
@@ -237,10 +242,19 @@ bool D2dTracker::_process_d2d_info()
     }
 
     // send msg to mavlink router
-    len = _get_radio_packet(packet, rssi, noise);
-    return _send_message(_router_fd, packet, len,
-                         Config::get_instance()->get_board_endpoint_name(),
-                         TYPE_DOMAIN_SOCK_ABSTRACT);
+    timespec ts;
+    uint64_t msec;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    msec = ts.tv_sec * 1000  + ts.tv_nsec / 1000000;
+    if (msec - _last_radio_pack_time >= RADIO_PACK_INTERVAL) {
+        _last_radio_pack_time = msec;
+
+        len = _get_radio_packet(packet, rssi, noise);
+        _send_message(_router_fd, packet, len,
+                      Config::get_instance()->get_board_endpoint_name(),
+                      TYPE_DOMAIN_SOCK_ABSTRACT);
+    }
+    return true;
 }
 
 ssize_t D2dTracker::_get_radio_packet(uint8_t *pBuf, uint8_t rssi, uint8_t noise)

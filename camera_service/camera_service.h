@@ -42,6 +42,7 @@ public:
     static void camera_notify_callback(int32_t msgType, int32_t ext1, int32_t ext2);
     static void camera_data_callback(int64_t timestamp, int32_t width, int32_t height,
                                      unsigned char *buf);
+    void init_pthread_condition();
     void cond_signal_photo_capture();
     int cond_wait_photo_capture();
 

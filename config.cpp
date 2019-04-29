@@ -26,6 +26,8 @@
 #define MAX_LINES 32
 #define MAX_LINE_TEXT 128
 
+#define NULL_STRING                     ((char*)"")
+#define NULL_STRING_CONFIG              ((char*)"null")
 #define DEFAULT_BOARD_ENDPOINT_NAME     ((char*)"boardendpoint")
 #define DEFAULT_CAMERA_ENDPOINT_NAME    ((char*)"cameraendpoint")
 #define DEFAULT_RC_SOCKET_NAME          ((char*)"/tmp/unix_radio")
@@ -34,6 +36,14 @@
 #define DEFAULT_BOARD_COMP_ID           MAV_COMP_ID_SYSTEM_CONTROL
 #define DEFAULT_CAMERA_SYSTEM_ID        10
 #define DEFAULT_CAMERA_COMP_ID          MAV_COMP_ID_CAMERA
+#define DEFAULT_WIFI_AP_IP_ADDRESS      ((char*)"192.168.43.1")
+#define DEFAULT_WIFI_IP_ADDRESS_PREFIX  ((char*)"192.168.43.")
+#define DEFAULT_ROUTER_CONTROLLER_NAME  ((char*)"routercontroller")
+#define DEFAULT_BOARD_CONTROL_ENABLED   false
+#define DEFAULT_CAMERA_CONTROL_ENABLED  false
+#define DEFAULT_WIFI_CONTROL_ENABLED    false
+#define DEFAULT_D2D_TRACKER_ENABLED     false
+#define DEFAULT_IN_AIR                  true
 
 Config* Config::_instance = nullptr;
 
@@ -48,6 +58,14 @@ Config::Config()
     , _camera_comp_id(DEFAULT_CAMERA_COMP_ID)
     , _support_multiple_camera(false)
     , _support_camera_capture(false)
+	, _wifi_ap_ip_address(DEFAULT_WIFI_AP_IP_ADDRESS)
+	, _wifi_ip_address_prefix(DEFAULT_WIFI_IP_ADDRESS_PREFIX)
+	, _router_controller_name(DEFAULT_ROUTER_CONTROLLER_NAME)
+	, _board_control_enabled(DEFAULT_BOARD_CONTROL_ENABLED)
+	, _camera_control_enabled(DEFAULT_CAMERA_CONTROL_ENABLED)
+	, _wifi_control_enabled(DEFAULT_WIFI_CONTROL_ENABLED)
+	, _d2d_tracker_enabled(DEFAULT_D2D_TRACKER_ENABLED)
+	, _in_air(DEFAULT_IN_AIR)
 {
 }
 
@@ -109,6 +127,46 @@ bool Config::get_support_camera_capture()
     return _support_camera_capture;
 }
 
+char* Config::get_wifi_ap_ip_address()
+{
+    return _wifi_ap_ip_address;
+}
+
+char* Config::get_wifi_ip_address_prefix()
+{
+    return _wifi_ip_address_prefix;
+}
+
+char* Config::get_router_controller_name()
+{
+    return _router_controller_name;
+}
+
+bool Config::get_board_control_enabled()
+{
+    return _board_control_enabled;
+}
+
+bool Config::get_camera_control_enabled()
+{
+    return _camera_control_enabled;
+}
+
+bool Config::get_wifi_control_enabled()
+{
+    return _wifi_control_enabled;
+}
+
+bool Config::get_d2d_tracker_enabled()
+{
+    return _d2d_tracker_enabled;
+}
+
+bool Config::get_in_air()
+{
+    return _in_air;
+}
+
 void Config::load_config(const char* filename)
 {
     char buffer[MAX_LINES][MAX_LINE_TEXT];
@@ -155,6 +213,22 @@ void Config::load_config(const char* filename)
             get_bool_value(&_support_multiple_camera, delimiters);
         } else if (strcmp(string, "support_camera_capture") == 0) {
             get_bool_value(&_support_camera_capture, delimiters);
+        } else if (strcmp(string, "wifi_ap_ip_address") == 0) {
+            get_string_value(&_wifi_ap_ip_address, delimiters);
+        } else if (strcmp(string, "wifi_ip_address_prefix") == 0) {
+            get_string_value(&_wifi_ip_address_prefix, delimiters);
+        } else if (strcmp(string, "router_controller_name") == 0) {
+            get_string_value(&_router_controller_name, delimiters);
+        } else if (strcmp(string, "board_control_enabled") == 0) {
+            get_bool_value(&_board_control_enabled, delimiters);
+        } else if (strcmp(string, "camera_control_enabled") == 0) {
+            get_bool_value(&_camera_control_enabled, delimiters);
+        } else if (strcmp(string, "wifi_control_enabled") == 0) {
+            get_bool_value(&_wifi_control_enabled, delimiters);
+        } else if (strcmp(string, "d2d_tracker_enabled") == 0) {
+            get_bool_value(&_d2d_tracker_enabled, delimiters);
+        } else if (strcmp(string, "in_air") == 0) {
+            get_bool_value(&_in_air, delimiters);
         } else {
             continue;
         }
@@ -168,7 +242,11 @@ bool Config::get_string_value(char** value, const char* delimiters) {
     if (!string) {
         return false;
     }
-    *value = strdup(string);
+    if (!strcmp(string, NULL_STRING_CONFIG)) {
+        *value = NULL_STRING;
+    } else {
+        *value = strdup(string);
+    }
     return true;
 }
 

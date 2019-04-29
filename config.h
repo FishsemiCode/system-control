@@ -30,6 +30,14 @@ public:
     int get_camera_comp_id();
     bool get_support_multiple_camera();
     bool get_support_camera_capture();
+    char* get_wifi_ap_ip_address();
+    char* get_wifi_ip_address_prefix();
+	char* get_router_controller_name();
+    bool get_board_control_enabled();
+    bool get_camera_control_enabled();
+    bool get_wifi_control_enabled();
+    bool get_d2d_tracker_enabled();
+    bool get_in_air();
     void load_config(const char* filename);
 
 private:
@@ -49,4 +57,12 @@ private:
     int _camera_comp_id;
     bool _support_multiple_camera;
     bool _support_camera_capture;
+    char* _wifi_ap_ip_address;
+    char* _wifi_ip_address_prefix;
+    char* _router_controller_name;
+    bool _board_control_enabled;
+    bool _camera_control_enabled;
+    bool _wifi_control_enabled;
+    bool _d2d_tracker_enabled;
+    bool _in_air;
 };
