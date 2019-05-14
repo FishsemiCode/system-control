@@ -156,7 +156,7 @@ int ModuleThread::_get_domain_socket(const char* sock_name, int type, bool non_b
         }
     }
 
-    ALOGD("get domain socket [%d] [%s]", fd, sock_name ? sock_name : " ");
+    ALOGD("get domain socket [%d] [%s] in %s", fd, sock_name ? sock_name : " ", _module_name);
     return fd;
 
 fail:

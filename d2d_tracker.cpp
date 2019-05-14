@@ -89,9 +89,11 @@ bool D2dTracker::_open_socket()
         }
     }
     // socket to send message to mavlink router
-    _router_fd = _get_domain_socket(NULL, 0);
-    if(_router_fd < 0) {
-        ALOGE("fail to create router socket");
+    if (strlen(Config::get_instance()->get_board_endpoint_name()) > 0) {
+        _router_fd = _get_domain_socket(NULL, 0);
+        if(_router_fd < 0) {
+            ALOGE("fail to create router socket");
+        }
     }
     return true;
 }
@@ -242,17 +244,19 @@ bool D2dTracker::_process_d2d_info()
     }
 
     // send msg to mavlink router
-    timespec ts;
-    uint64_t msec;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    msec = ts.tv_sec * 1000  + ts.tv_nsec / 1000000;
-    if (msec - _last_radio_pack_time >= RADIO_PACK_INTERVAL) {
-        _last_radio_pack_time = msec;
+    if (_router_fd >= 0) {
+        timespec ts;
+        uint64_t msec;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        msec = ts.tv_sec * 1000  + ts.tv_nsec / 1000000;
+        if (msec - _last_radio_pack_time >= RADIO_PACK_INTERVAL) {
+            _last_radio_pack_time = msec;
 
-        len = _get_radio_packet(packet, rssi, noise);
-        _send_message(_router_fd, packet, len,
-                      Config::get_instance()->get_board_endpoint_name(),
-                      TYPE_DOMAIN_SOCK_ABSTRACT);
+            len = _get_radio_packet(packet, rssi, noise);
+            _send_message(_router_fd, packet, len,
+                          Config::get_instance()->get_board_endpoint_name(),
+                          TYPE_DOMAIN_SOCK_ABSTRACT);
+        }
     }
     return true;
 }
