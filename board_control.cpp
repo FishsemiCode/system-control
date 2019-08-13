@@ -23,6 +23,11 @@
 #include "config.h"
 #include "board_control.h"
 
+#ifdef LAMP_SIGNAL_EXIST
+#include "LampSignalService.h"
+#include <binder/IServiceManager.h>
+#endif
+
 #undef LOG_TAG
 #define LOG_TAG "BoardControl"
 #define POLLING_RATE_TIMEOUT_MS (500)
@@ -36,19 +41,33 @@ BoardControl::BoardControl()
     , _last_board_temperature(0)
     , _time_sync_counter(0)
     , _time_sync_done(false)
+    , _cpu_temp(-1)
+    , _battery_level(-1)
 {
     _system_id = Config::get_instance()->get_board_system_id();
     _comp_id = Config::get_instance()->get_board_comp_id();
+
+#ifdef LAMP_SIGNAL_EXIST
+    _last_temp_state = NOT_WORKING;
+    _last_battery_state = NOT_WORKING;
+    sp<IBinder> binder = defaultServiceManager()->getService(String16(LampSignalService::getServiceName()));
+    if (binder == nullptr) {
+        ALOGE("failed to get service: %s", LampSignalService::getServiceName());
+    } else {
+        _listener = interface_cast<ISystemStatusListener>(binder);
+        if (_listener == nullptr) {
+            ALOGE("failed to cast LampSignalService interface");
+        }
+    }
+#endif
+
 }
 
 bool BoardControl::start()
 {
-    // The timer is only needed in air
-    if (Config::get_instance()->get_in_air()) {
-        if (!_add_timer(&_timer_fd, POLLING_RATE_TIMEOUT_MS)) {
-            ALOGE("Unable to add timerfd");
-            goto fail;
-        }
+    if (!_add_timer(&_timer_fd, POLLING_RATE_TIMEOUT_MS)) {
+        ALOGE("Unable to add timerfd");
+        goto fail;
     }
     _sock_fd = _get_domain_socket(BOARD_CONTROL_SOCK_NAME,
                                  TYPE_DOMAIN_SOCK_ABSTRACT);
@@ -79,15 +98,25 @@ bool BoardControl::_handle_timeout(int fd)
     int ret;
     int temperature;
     if (_timer_fd == fd) {
-        // board temperature, only in air
-        ret = _get_board_temperature(&temperature);
-        if (ret == 0 && temperature != _last_board_temperature) {
-            _last_board_temperature = temperature;
-             ALOGD("temperature changed to %d", temperature);
-            _send_board_temperature_message(_last_board_temperature/10);
+        if (Config::get_instance()->get_in_air()) {
+            // sendout board temperature, only in air
+            ret = _get_board_temperature(&temperature);
+            if (ret == 0 && temperature != _last_board_temperature) {
+                _last_board_temperature = temperature;
+                 ALOGD("temperature changed to %d", temperature);
+                _send_board_temperature_message(_last_board_temperature/10);
+            }
+            // sync time request with gcs, only in air
+            _send_time_sync_request();
+#ifdef LAMP_SIGNAL_EXIST
+        } else if (_listener != nullptr) {
+            // update cpu temp
+            _get_cpu_temperature(&_cpu_temp);
+            // update battery state
+            _get_battery_stat(&_battery_level);
+            _signal_lamp_service();
+#endif
         }
-        // sync time request with gcs, only in air
-        _send_time_sync_request();
         return true;
     }
     return false;
@@ -212,4 +241,81 @@ int BoardControl::_get_board_temperature(int* temp)
     }
     pclose(fp);
     return 0;
+}
+
+int BoardControl::_get_cpu_temperature(int* temp)
+{
+    FILE *fp;
+    char line[256];
+
+    fp = popen("cat /sys/class/thermal/thermal_zone4/temp", "r");
+    if (fp == NULL) {
+        ALOGE("Failed to read thermal_zone4 temp!");
+        return -1;
+    }
+
+    /* Read the output a line at a time - output it. */
+    if (fgets(line, sizeof(line)-1, fp) != NULL) {
+        ALOGV("cpu temp is %s", line);
+        *temp = atoi(line);
+    } else {
+        ALOGE("reading null from thermal_zone4 temp!");
+        return -1;
+    }
+    pclose(fp);
+    return 0;
+}
+
+int BoardControl::_get_battery_stat(int* battery_level)
+{
+    FILE *fp;
+    char line[256];
+
+    fp = popen("cat /sys/class/power_supply/battery/capacity", "r");
+    if (fp == NULL) {
+        ALOGE("Failed to read battery capacity!");
+        return -1;
+    }
+
+    /* Read the output a line at a time - output it. */
+    if (fgets(line, sizeof(line)-1, fp) != NULL) {
+        ALOGV("battery level is %s", line);
+        *battery_level = atoi(line);
+    } else {
+        ALOGE("reading null from battery capacity!");
+        return -1;
+    }
+    pclose(fp);
+    return 0;
+}
+
+void BoardControl::_signal_lamp_service()
+{
+#ifdef LAMP_SIGNAL_EXIST
+    if (_listener == nullptr) {
+       ALOGE("_listener invalid");
+       return;
+    }
+    SystemStatus state;
+    if (_cpu_temp > Config::get_instance()->get_cpu_temperature_high_value()) {
+        state = TEMP_ABNORMAL;
+    } else {
+        state = TEMP_NORMAL;
+    }
+    if (state != _last_temp_state) {
+        _last_temp_state = state;
+        ALOGD("cpu temp state changed to %d", state);
+    }
+    _listener->onStatusChanged(_last_temp_state, false);
+    if (_battery_level < Config::get_instance()->get_battery_level_low_value()) {
+        state = POWER_ABNORMAL;
+    } else {
+        state = POWER_NORMAL;
+    }
+    if (state != _last_battery_state) {
+        _last_battery_state = state;
+        ALOGD("battery state changed to %d", state);
+    }
+    _listener->onStatusChanged(_last_battery_state, false);
+#endif
 }

@@ -2,6 +2,7 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 CAMERA_EXIST := $(shell test -d $(LOCAL_PATH)/../camera && echo yes)
+LAMP_SIGNAL_EXIST := $(shell test -d $(LOCAL_PATH)/../lampsignal && echo yes)
 
 LOCAL_SRC_FILES:= \
         main.cpp \
@@ -30,6 +31,15 @@ ifeq ($(CAMERA_EXIST), yes)
 LOCAL_SHARED_LIBRARIES += \
         libuavmaincamera_client \
         libcamera_client
+endif
+
+ifeq ($(LAMP_SIGNAL_EXIST), yes)
+
+LOCAL_SHARED_LIBRARIES += \
+        liblampsignal
+
+LOCAL_CFLAGS += -DLAMP_SIGNAL_EXIST
+
 endif
 
 LOCAL_C_INCLUDES += \

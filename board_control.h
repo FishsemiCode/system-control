@@ -17,6 +17,12 @@
 #pragma once
 #include "module_thread.h"
 
+#ifdef LAMP_SIGNAL_EXIST
+#include <ISystemStatusListener.h>
+
+using namespace android;
+#endif
+
 class BoardControl : public ModuleThread {
 public:
     BoardControl();
@@ -31,6 +37,8 @@ protected:
     bool _send_board_temperature_message(int16_t temp);
     int _get_cpu_temperature(int* temp);
     int _get_board_temperature(int* temp);
+    int _get_battery_stat(int* battery_level);
+    void _signal_lamp_service();
 
 private:
     int _timer_fd;
@@ -40,4 +48,11 @@ private:
     uint8_t _comp_id;
     uint32_t _time_sync_counter;
     bool _time_sync_done;
+    int _cpu_temp;
+    int _battery_level;
+#ifdef LAMP_SIGNAL_EXIST
+    SystemStatus _last_temp_state;
+    SystemStatus _last_battery_state;
+    sp<ISystemStatusListener> _listener;
+#endif
 };

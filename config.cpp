@@ -39,6 +39,8 @@
 #define DEFAULT_WIFI_AP_IP_ADDRESS      ((char*)"192.168.43.1")
 #define DEFAULT_WIFI_IP_ADDRESS_PREFIX  ((char*)"192.168.43.")
 #define DEFAULT_ROUTER_CONTROLLER_NAME  ((char*)"routercontroller")
+#define DEFAULT_CPU_TEMPERATURE_HIGH_V  95000 //(95 degrees Celsius)
+#define DEFAULT_BATTERY_LEVEL_LOW_V     20
 #define DEFAULT_BOARD_CONTROL_ENABLED   false
 #define DEFAULT_CAMERA_CONTROL_ENABLED  false
 #define DEFAULT_WIFI_CONTROL_ENABLED    false
@@ -61,6 +63,8 @@ Config::Config()
 	, _wifi_ap_ip_address(DEFAULT_WIFI_AP_IP_ADDRESS)
 	, _wifi_ip_address_prefix(DEFAULT_WIFI_IP_ADDRESS_PREFIX)
 	, _router_controller_name(DEFAULT_ROUTER_CONTROLLER_NAME)
+	, _cpu_temperature_high_value(DEFAULT_CPU_TEMPERATURE_HIGH_V)
+	, _battery_level_low_value(DEFAULT_BATTERY_LEVEL_LOW_V)
 	, _board_control_enabled(DEFAULT_BOARD_CONTROL_ENABLED)
 	, _camera_control_enabled(DEFAULT_CAMERA_CONTROL_ENABLED)
 	, _wifi_control_enabled(DEFAULT_WIFI_CONTROL_ENABLED)
@@ -142,6 +146,16 @@ char* Config::get_router_controller_name()
     return _router_controller_name;
 }
 
+int Config::get_cpu_temperature_high_value()
+{
+    return _cpu_temperature_high_value;
+}
+
+int Config::get_battery_level_low_value()
+{
+    return _battery_level_low_value;
+}
+
 bool Config::get_board_control_enabled()
 {
     return _board_control_enabled;
@@ -219,6 +233,10 @@ void Config::load_config(const char* filename)
             get_string_value(&_wifi_ip_address_prefix, delimiters);
         } else if (strcmp(string, "router_controller_name") == 0) {
             get_string_value(&_router_controller_name, delimiters);
+        } else if (strcmp(string, "cpu_temperature_high_value") == 0) {
+            get_int_value(&_cpu_temperature_high_value, delimiters);
+        } else if (strcmp(string, "battery_level_low_value") == 0) {
+            get_int_value(&_battery_level_low_value, delimiters);
         } else if (strcmp(string, "board_control_enabled") == 0) {
             get_bool_value(&_board_control_enabled, delimiters);
         } else if (strcmp(string, "camera_control_enabled") == 0) {

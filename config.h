@@ -33,6 +33,8 @@ public:
     char* get_wifi_ap_ip_address();
     char* get_wifi_ip_address_prefix();
 	char* get_router_controller_name();
+    int get_cpu_temperature_high_value();
+    int get_battery_level_low_value();
     bool get_board_control_enabled();
     bool get_camera_control_enabled();
     bool get_wifi_control_enabled();
@@ -60,6 +62,8 @@ private:
     char* _wifi_ap_ip_address;
     char* _wifi_ip_address_prefix;
     char* _router_controller_name;
+    int _cpu_temperature_high_value;
+    int _battery_level_low_value;
     bool _board_control_enabled;
     bool _camera_control_enabled;
     bool _wifi_control_enabled;
