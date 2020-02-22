@@ -38,6 +38,7 @@ protected:
     int _get_cpu_temperature(int* temp);
     int _get_board_temperature(int* temp);
     int _get_battery_stat(int* battery_level);
+    int _get_charging_stat(int* is_charging);
     void _signal_lamp_service();
 
 private:
@@ -50,9 +51,11 @@ private:
     bool _time_sync_done;
     int _cpu_temp;
     int _battery_level;
+    int _is_charging;
 #ifdef LAMP_SIGNAL_EXIST
     SystemStatus _last_temp_state;
     SystemStatus _last_battery_state;
+    SystemStatus _last_charging_state;
     sp<ISystemStatusListener> _listener;
 #endif
 };

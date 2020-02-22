@@ -43,6 +43,7 @@ BoardControl::BoardControl()
     , _time_sync_done(false)
     , _cpu_temp(-1)
     , _battery_level(-1)
+    , _is_charging(0)
 {
     _system_id = Config::get_instance()->get_board_system_id();
     _comp_id = Config::get_instance()->get_board_comp_id();
@@ -114,6 +115,8 @@ bool BoardControl::_handle_timeout(int fd)
             _get_cpu_temperature(&_cpu_temp);
             // update battery state
             _get_battery_stat(&_battery_level);
+            // update charging state
+            _get_charging_stat(&_is_charging);
             _signal_lamp_service();
 #endif
         }
@@ -289,6 +292,29 @@ int BoardControl::_get_battery_stat(int* battery_level)
     return 0;
 }
 
+int BoardControl::_get_charging_stat(int* is_charging)
+{
+    FILE *fp;
+    char line[256];
+
+    fp = popen("cat /sys/class/power_supply/ac/online", "r");
+    if (fp == NULL) {
+        ALOGE("Failed to read ac online!");
+        return -1;
+    }
+
+    /* Read the output a line at a time - output it. */
+    if (fgets(line, sizeof(line)-1, fp) != NULL) {
+        ALOGV("ac online is %s", line);
+        *is_charging = atoi(line);
+    } else {
+        ALOGE("reading null from ac online!");
+        return -1;
+    }
+    pclose(fp);
+    return 0;
+}
+
 void BoardControl::_signal_lamp_service()
 {
 #ifdef LAMP_SIGNAL_EXIST
@@ -317,5 +343,21 @@ void BoardControl::_signal_lamp_service()
         ALOGD("battery state changed to %d", state);
     }
     _listener->onStatusChanged(_last_battery_state, false);
+    state = NOT_WORKING;
+    if (_is_charging) {
+        if (_battery_level < 100) {
+            state = IN_CHARGING;
+        } else {
+            state = FINISH_CHARGE;
+        }
+    }
+    if (state != _last_charging_state) {
+        _last_charging_state = state;
+        ALOGD("charging state changed to %d", state);
+    }
+    // only send state when charging is on
+    if (_last_charging_state > NOT_WORKING) {
+        _listener->onStatusChanged(_last_charging_state, false);
+    }
 #endif
 }
